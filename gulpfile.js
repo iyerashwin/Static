@@ -17,13 +17,16 @@ var filelist = require('gulp-filelist');
 const rev = require('gulp-rev');
 const debug = require('gulp-debug');
 const logCapture = require('gulp-log-capture');
-
+const tar = require('gulp-tar');
+const zip = require('gulp-zip');
 
 var htmlclean = require('gulp-htmlclean');
 var cleanCSS = require('gulp-clean-css');
 var uglify = require('gulp-uglify');
 var newer = require('gulp-newer');
 var filelog = require('gulp-filelog');
+var gzip = require('gulp-gzip');
+
 
 var info = {};
 
@@ -33,8 +36,8 @@ info.build = {
 };
 
 info.dest = {
-    css : 'dist/css/',
-    js   : 'dist/js/',
+    css : 'dist/css/**',
+    js   : 'dist/js/**',
 };
 
 var paths = {
@@ -45,25 +48,24 @@ var paths = {
   build: 'build',
   buildIndex: 'build/index.html',
   buildCSS: 'build/**/*.css',
-  buildJS: 'build/**/*',
+  buildJS: 'build/**/*.js',
   dist: 'dist',
   distIndex: 'dist/index.html',
   distCSS: 'dist/**/*.css',
-  distJS: 'dist/**/*.js'
+  distJS: 'dist/**/*.js',
+  target: 'target/',
+  targetCSS: 'target/css/',
+  targetjs: 'target/js/'
 };
 
-gulp.task('html', function () {
-  return gulp.src(paths.srcHTML).pipe(changed(paths.build)).pipe(filelog()).pipe(gulp.dest(paths.build)).pipe(gulp.dest(paths.dist));
-});
-
 gulp.task('css', function () {
-  return gulp.src(paths.srcCSS).pipe(changed(paths.build)).pipe(filelist('filelist.json')).pipe(gulp.dest(paths.build)).pipe(gulp.dest(paths.dist));
+  return gulp.src(paths.srcCSS).pipe(gulp.dest(paths.build));
 });
 
 gulp.task('js', function () {
-//gulp.src(paths.srcJS).pipe(gulp.dest(paths.build));  
+gulp.src(paths.srcJS).pipe(gulp.dest(paths.build));  
 //return gulp.src(paths.srcJS).pipe(changed('dist')).pipe(concat('all-' + pkg.version + '.js')).pipe(gulp.dest(info.dest.js));
-return gulp.src(paths.srcJS).pipe(changed(paths.build)).pipe(filelog()).pipe(gulp.dest(paths.build)).pipe(gulp.dest(paths.dist));
+//return gulp.src(paths.srcJS).pipe(changed(paths.build)).pipe(filelog()).pipe(gulp.dest(paths.build)).pipe(gulp.dest(paths.dist));
 //return gulp.src(paths.srcJS).pipe(changed('build')).pipe(rev()).pipe(gulp.dest(paths.build));
 
 });
@@ -72,36 +74,26 @@ gulp.task('bump', function(){
   return gulp.src('./package.json').pipe(bump()).pipe(gulp.dest('./'));
 });
 
-gulp.task('copy', ['html', 'css', 'js']);
+gulp.task('copy', ['css', 'js']);
 
-gulp.task('inject', ['copy'], function () {
-  var css = gulp.src(paths.buildCSS);
-  var js = gulp.src(paths.buildJS);
-  return gulp.src(paths.buildIndex)
-    .pipe(inject( css, { relative:true } ))
-    .pipe(inject( js, { relative:true } ))
-    .pipe(gulp.dest(paths.build));
+//For processed files (Minimize & Zip)
+gulp.task('minimizecss', function() {
+	return gulp.src(paths.buildCSS).pipe(cleanCSS()).pipe(gulp.dest(paths.dist));
 });
 
-gulp.task('html:dist', function () {
-  return gulp.src(paths.srcHTML).pipe(changed('dist')).pipe(gulp.dest(paths.dist));
+gulp.task('minimizejs', function() {
+	return gulp.src(paths.buildJS).pipe(uglify()).pipe(gulp.dest(paths.dist));
 });
 
-gulp.task('css:dist', function () {
-  return gulp.src(paths.srcCSS).pipe(concat('style.min.css')).pipe(cleanCSS()).pipe(gulp.dest(info.dest.css));
-});
-gulp.task('js:dist', function () {
-  return gulp.src(paths.srcJS).pipe(concat('script.min.js')).pipe(uglify()).pipe(gulp.dest(info.dest.js));
-});
-gulp.task('copy:dist', ['html:dist', 'css:dist', 'js:dist']);
-
-gulp.task('inject:dist', ['copy:dist'], function () {
-  var css = gulp.src(paths.distCSS);
-  var js = gulp.src(paths.distJS);
-  return gulp.src(paths.distIndex).pipe(inject( css, { relative:true } )).pipe(inject( js, { relative:true } )).pipe(gulp.dest(paths.dist));
+gulp.task('compresscss', function() {
+	return gulp.src(info.dest.css).pipe(zip('css.zip')).pipe(gulp.dest(paths.target));
 });
 
-gulp.task('build', ['inject:dist']);
+gulp.task('compressjs', function() {
+	return gulp.src(info.dest.js).pipe(zip('js.zip')).pipe(gulp.dest(paths.target));
+});
+
+gulp.task('build', ['copy', 'minimizecss','minimizejs','compresscss','compressjs']);
 
 
 gulp.task('default', function () {
