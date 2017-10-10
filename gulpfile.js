@@ -11,8 +11,6 @@ var pkg = require('./package.json');
 var changed = require('gulp-changed');
 
 var revManifest = require('gulp-revmanifest');
-var filelist = require('gulp-filelist');
-
 
 const rev = require('gulp-rev');
 const debug = require('gulp-debug');
